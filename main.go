@@ -80,9 +80,9 @@ func createSnake(x, y int) {
 func createFood() {
 	for i := 0; i < 100; i++ {
 		rand.Seed(time.Now().UnixNano())
-		x := rand.Intn(WIDTH)
+		x := rand.Intn(WIDTH - 1)
 		rand.Seed(time.Now().UnixNano())
-		y := rand.Intn(HEIGHT)
+		y := rand.Intn(HEIGHT - 1)
 		if board[x][y].Type == EMPTY {
 			board[x][y].Type = FOOD
 			//log.Printf("setting %v/%v to food", x, y)
@@ -118,7 +118,7 @@ func frame() error {
 	}
 
 	// Boundary checks
-	if next.x < 0 || next.y < 0 || next.x > WIDTH-1 || next.y > HEIGHT-1 {
+	if next.x < 0 || next.y < 0 || next.x >= WIDTH-1 || next.y >= HEIGHT-1 {
 		return errors.New("Hit wall")
 	}
 
@@ -147,7 +147,7 @@ func changeDirection(chosen Direction) {
 
 	next := Cord{x: newest.x, y: newest.y}
 
-	switch direction {
+	switch chosen {
 	case LEFT:
 		next.x--
 	case RIGHT:
@@ -159,7 +159,6 @@ func changeDirection(chosen Direction) {
 	}
 
 	// Can't change direction to trail
-	// TODO fix this!
 	if next.x == previous.x && next.y == previous.y {
 		// Ignore
 		return
