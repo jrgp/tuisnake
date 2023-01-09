@@ -14,9 +14,8 @@ import (
 type Type int
 
 const (
-	EMPTY Type = 1
-	SNAKE      = 2
-	FOOD       = 3
+	SNAKE Type = 1
+	FOOD  Type = 2
 )
 
 type Direction int
@@ -42,8 +41,7 @@ type Cord struct {
 	x, y int
 }
 
-// TODO make this a map[Cord]Cell{}
-var board = [WIDTH][HEIGHT]Cell{}
+var board = map[Cord]Cell{}
 
 var (
 	direction Direction
@@ -51,31 +49,25 @@ var (
 )
 
 func initState() {
-	// Create board
-	for i := 0; i < WIDTH; i++ {
-		for j := 0; j < HEIGHT; j++ {
-			board[i][j] = Cell{Type: EMPTY}
-		}
-	}
+	// Wipe Board
+	board = map[Cord]Cell{}
 
 	// Set default direction
 	direction = RIGHT
 
 	// Create a small 3-length snake pointing right
 	// in the middle
-	createSnake(WIDTH/2-1, HEIGHT/2)
-	createSnake(WIDTH/2, HEIGHT/2)
-	createSnake(WIDTH/2+1, HEIGHT/2)
+	createSnake(Cord{x: WIDTH/2 - 1, y: HEIGHT / 2})
+	createSnake(Cord{x: WIDTH / 2, y: HEIGHT / 2})
+	createSnake(Cord{x: WIDTH/2 + 1, y: HEIGHT / 2})
 
 	// Create a food
 	createFood()
 }
 
-// TODO: take in a Cord
-func createSnake(x, y int) {
-	tailQueue.PushFront(Cord{x, y})
-	board[x][y] = Cell{Type: SNAKE}
-	//log.Printf("setting %v/%v to snake", x, y)
+func createSnake(cord Cord) {
+	tailQueue.PushFront(cord)
+	board[cord] = Cell{Type: SNAKE}
 }
 
 func createFood() {
@@ -84,9 +76,9 @@ func createFood() {
 		x := rand.Intn(WIDTH - 1)
 		rand.Seed(time.Now().UnixNano())
 		y := rand.Intn(HEIGHT - 1)
-		if board[x][y].Type == EMPTY {
-			board[x][y].Type = FOOD
-			//log.Printf("setting %v/%v to food", x, y)
+		cord := Cord{x: x, y: y}
+		if _, ok := board[cord]; !ok {
+			board[cord] = Cell{Type: FOOD}
 			break
 		}
 	}
@@ -97,10 +89,8 @@ func createFood() {
 func frame() error {
 
 	// Add new to front.
-	newest := tailQueue.At(0)
+	next := tailQueue.At(0)
 	previous := tailQueue.At(1)
-
-	next := Cord{x: newest.x, y: newest.y}
 
 	switch direction {
 	case LEFT:
@@ -123,30 +113,31 @@ func frame() error {
 		return errors.New("hit wall")
 	}
 
-	switch board[next.x][next.y].Type {
-	case SNAKE:
-		// Eat self checks
-		return errors.New("ate self")
-	case FOOD:
-		// A food item? Don't pop last elem (get longer) and spawn new food
-		createFood()
-	case EMPTY:
+	if cell, ok := board[next]; ok {
+		switch cell.Type {
+		case SNAKE:
+			// Eat self checks
+			return errors.New("ate self")
+		case FOOD:
+			// A food item? Don't pop last elem (get longer) and spawn new food
+			createFood()
+		}
+
+	} else {
 		// Kill final position (don't get longer)
 		oldest := tailQueue.PopBack()
-		board[oldest.x][oldest.y].Type = EMPTY
+		delete(board, oldest)
 	}
 
 	// Good. Plant new one on board.
-	createSnake(next.x, next.y)
+	createSnake(next)
 
 	return nil
 }
 
 func changeDirection(chosen Direction) {
-	newest := tailQueue.At(0)
+	next := tailQueue.At(0)
 	previous := tailQueue.At(1)
-
-	next := Cord{x: newest.x, y: newest.y}
 
 	switch chosen {
 	case LEFT:
@@ -183,19 +174,14 @@ func drawBoard() {
 		screen.SetContent(WIDTH+1, i, tcell.RuneVLine, nil, wall)
 	}
 
-	for i := 0; i < WIDTH; i++ {
-		for j := 0; j < HEIGHT; j++ {
-			cell := board[i][j]
-			switch cell.Type {
-			case EMPTY:
-			case SNAKE:
-				screen.SetContent(i+1, j+1, tcell.RuneBlock, nil, snake)
-			case FOOD:
-				screen.SetContent(i+1, j+1, tcell.RuneDiamond, nil, food)
-			}
+	for cord, cell := range board {
+		switch cell.Type {
+		case SNAKE:
+			screen.SetContent(cord.x+1, cord.y+1, tcell.RuneBlock, nil, snake)
+		case FOOD:
+			screen.SetContent(cord.x+1, cord.y+1, tcell.RuneDiamond, nil, food)
 		}
 	}
-
 }
 
 var screen tcell.Screen
@@ -206,7 +192,7 @@ var quit = make(chan struct{})
 func main() {
 	var err error
 
-	screen, err = tcell.NewScreen()
+	screen, err = tcell.NewTerminfoScreen()
 	if err != nil {
 		log.Fatalf("Failed making screen: %v", err)
 	}
