@@ -14,7 +14,6 @@ type UI struct {
 	snake    *Snake
 	paused   bool
 	gameover bool
-	quit     chan struct{}
 	cancel   context.CancelFunc
 }
 

@@ -25,7 +25,6 @@ const (
 
 type Cell struct {
 	Type Type
-	Age  int
 }
 
 type Cord struct {
