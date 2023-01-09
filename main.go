@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -13,6 +14,7 @@ type UI struct {
 	snake  *Snake
 	paused bool
 	quit   chan struct{}
+	cancel context.CancelFunc
 }
 
 const (
@@ -21,19 +23,24 @@ const (
 )
 
 func (g *UI) drawBoard() {
-	wall := tcell.StyleDefault.Foreground(tcell.ColorGrey).Background(tcell.ColorGrey)
+	wall := tcell.StyleDefault
 	snake := tcell.StyleDefault.Foreground(tcell.ColorBlue).Background(tcell.ColorBlue)
-	food := tcell.StyleDefault.Background(tcell.ColorRed).Foreground(tcell.ColorRed)
+	food := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorRed)
 
-	for i := 0; i < WIDTH+1; i++ {
+	for i := 0; i < WIDTH; i++ {
 		g.screen.SetContent(i, 0, tcell.RuneHLine, nil, wall)
-		g.screen.SetContent(i, HEIGHT+1, tcell.RuneHLine, nil, wall)
+		g.screen.SetContent(i, HEIGHT, tcell.RuneHLine, nil, wall)
 	}
 
-	for i := 0; i < HEIGHT+1; i++ {
+	for i := 0; i < HEIGHT; i++ {
 		g.screen.SetContent(0, i, tcell.RuneVLine, nil, wall)
-		g.screen.SetContent(WIDTH+1, i, tcell.RuneVLine, nil, wall)
+		g.screen.SetContent(WIDTH, i, tcell.RuneVLine, nil, wall)
 	}
+	g.screen.SetContent(0, HEIGHT, tcell.RuneLLCorner, nil, wall)
+	g.screen.SetContent(WIDTH, HEIGHT, tcell.RuneLRCorner, nil, wall)
+
+	g.screen.SetContent(WIDTH, 0, tcell.RuneURCorner, nil, wall)
+	g.screen.SetContent(0, 0, tcell.RuneULCorner, nil, wall)
 
 	for cord, cell := range g.snake.board {
 		switch cell.Type {
@@ -42,6 +49,16 @@ func (g *UI) drawBoard() {
 		case FOOD:
 			g.screen.SetContent(cord.x+1, cord.y+1, tcell.RuneDiamond, nil, food)
 		}
+	}
+
+	score := fmt.Sprintf("Size: %v", g.snake.tailQueue.Len())
+
+	if g.paused {
+		score += " (PAUSED)"
+	}
+
+	for i, char := range score {
+		g.screen.SetContent(i, HEIGHT+2, char, nil, tcell.StyleDefault)
 	}
 }
 
@@ -70,11 +87,13 @@ func main() {
 
 func (g *UI) Run() {
 	evenChan := make(chan tcell.Event)
+	ctx, cancel := context.WithCancel(context.Background())
+	g.cancel = cancel
 
 	go func() {
 		for {
 			select {
-			case <-g.quit:
+			case <-ctx.Done():
 				return
 			default:
 			}
@@ -83,7 +102,7 @@ func (g *UI) Run() {
 				return
 			}
 			select {
-			case <-g.quit:
+			case <-ctx.Done():
 				return
 			case evenChan <- ev:
 			case <-time.After(time.Second):
@@ -101,7 +120,7 @@ func (g *UI) Run() {
 LOOP:
 	for {
 		select {
-		case <-g.quit:
+		case <-ctx.Done():
 			break LOOP
 		case ev := <-evenChan:
 			g.handleEvent(ev)
@@ -135,11 +154,11 @@ func (g *UI) handleEvent(ev tcell.Event) {
 
 	switch ev := ev.(type) {
 	case *tcell.EventInterrupt:
-		close(g.quit)
+		g.cancel()
 	case *tcell.EventKey:
 		switch ev.Key() {
 		case tcell.KeyEscape, tcell.KeyCtrlC:
-			close(g.quit)
+			g.cancel()
 		case tcell.KeyUp:
 			g.snake.ChangeDirection(UP)
 		case tcell.KeyDown:
@@ -151,7 +170,7 @@ func (g *UI) handleEvent(ev tcell.Event) {
 		case tcell.KeyRune:
 			switch ev.Rune() {
 			case 'q':
-				close(g.quit)
+				g.cancel()
 			case 'p':
 				g.paused = !g.paused
 			}
