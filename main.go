@@ -10,11 +10,12 @@ import (
 )
 
 type UI struct {
-	screen tcell.Screen
-	snake  *Snake
-	paused bool
-	quit   chan struct{}
-	cancel context.CancelFunc
+	screen   tcell.Screen
+	snake    *Snake
+	paused   bool
+	gameover bool
+	quit     chan struct{}
+	cancel   context.CancelFunc
 }
 
 const (
@@ -51,18 +52,21 @@ func (g *UI) drawBoard() {
 		}
 	}
 
-	score := fmt.Sprintf("Size: %v", g.snake.tailQueue.Len())
+	subtitle := fmt.Sprintf("Size: %v", g.snake.tailQueue.Len())
 
-	if g.paused {
-		score += " (PAUSED)"
+	if g.gameover {
+		subtitle = "GAME OVER. 'R' to replay"
+	} else {
+		if g.paused {
+			subtitle += " (PAUSED)"
+		}
 	}
 
-	for i, char := range score {
-		g.screen.SetContent(i, HEIGHT+2, char, nil, tcell.StyleDefault)
+	for i, char := range subtitle {
+		g.screen.SetContent(i+1, HEIGHT+1, char, nil, tcell.StyleDefault)
 	}
 }
 
-// TODO: add score/length counters underneath walls
 func main() {
 
 	screen, err := tcell.NewTerminfoScreen()
@@ -125,10 +129,10 @@ LOOP:
 		case ev := <-evenChan:
 			g.handleEvent(ev)
 		case <-ticker.C:
-			if !g.paused {
+			if !g.paused && !g.gameover {
 				endErr = g.snake.UpdateState()
 				if endErr != nil {
-					break LOOP
+					g.gameover = true
 				}
 			}
 			g.screen.Clear()
@@ -139,15 +143,6 @@ LOOP:
 
 	g.screen.Clear()
 	g.screen.Fini()
-
-	if endErr != nil {
-		// TODO: replace this with a modal/popup with game over
-		// message and option to restart with Y or N
-		fmt.Printf("End: %v\n", endErr)
-	} else {
-		fmt.Println("Exiting")
-	}
-
 }
 
 func (g *UI) handleEvent(ev tcell.Event) {
@@ -173,6 +168,9 @@ func (g *UI) handleEvent(ev tcell.Event) {
 				g.cancel()
 			case 'p':
 				g.paused = !g.paused
+			case 'r':
+				g.snake.Reset()
+				g.gameover = false
 			}
 		}
 	}
