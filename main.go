@@ -24,8 +24,8 @@ const (
 )
 
 func (g *UI) drawBoard() {
-	wall := tcell.StyleDefault
-	snake := tcell.StyleDefault.Foreground(tcell.ColorBlue).Background(tcell.ColorBlue)
+	wall := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorGreen)
+	snake := tcell.StyleDefault.Background(tcell.ColorBlue).Foreground(tcell.ColorBlue)
 	food := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorRed)
 
 	for i := 0; i < WIDTH; i++ {
@@ -171,6 +171,7 @@ func (g *UI) handleEvent(ev tcell.Event) {
 			case 'r':
 				g.snake.Reset()
 				g.gameover = false
+				g.paused = false
 			}
 		}
 	}
