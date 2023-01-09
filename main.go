@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"time"
@@ -92,7 +93,7 @@ func createFood() {
 }
 
 // Try to move TIP one cell to the right
-// Change oldest CELL tail to empty
+// Change the oldest CELL tail to empty
 func frame() error {
 
 	// Add new to front.
@@ -114,20 +115,20 @@ func frame() error {
 
 	// Can't change direction to trail. Sanity-check; this should be disallowed
 	if next.x == previous.x && next.y == previous.y {
-		return errors.New("Can't go backwards")
+		return errors.New("can't go backwards")
 	}
 
 	// Boundary checks
 	if next.x < 0 || next.y < 0 || next.x >= WIDTH-1 || next.y >= HEIGHT-1 {
-		return errors.New("Hit wall")
+		return errors.New("hit wall")
 	}
 
 	switch board[next.x][next.y].Type {
 	case SNAKE:
 		// Eat self checks
-		return errors.New("Ate self")
+		return errors.New("ate self")
 	case FOOD:
-		// A food? Don't pop last elem (get longer) and spawn new food
+		// A food item? Don't pop last elem (get longer) and spawn new food
 		createFood()
 	case EMPTY:
 		// Kill final position (don't get longer)
@@ -168,26 +169,18 @@ func changeDirection(chosen Direction) {
 }
 
 func drawBoard() {
-	wall := tcell.StyleDefault
-	wall = wall.Foreground(tcell.ColorGrey)
-	wall = wall.Background(tcell.ColorGrey)
+	wall := tcell.StyleDefault.Foreground(tcell.ColorGrey).Background(tcell.ColorGrey)
+	snake := tcell.StyleDefault.Foreground(tcell.ColorBlue).Background(tcell.ColorBlue)
+	food := tcell.StyleDefault.Background(tcell.ColorRed).Foreground(tcell.ColorRed)
 
-	snake := tcell.StyleDefault
-	snake = snake.Background(tcell.ColorWhite)
-	snake = snake.Foreground(tcell.ColorWhite)
-
-	food := tcell.StyleDefault
-	food = food.Background(tcell.ColorGreen)
-	food = food.Foreground(tcell.ColorGreen)
-
-	for i := 0; i < WIDTH; i++ {
-		screen.SetContent(i, 0, tcell.RuneBlock, nil, wall)
-		screen.SetContent(i, HEIGHT-1, tcell.RuneBlock, nil, wall)
+	for i := 0; i < WIDTH+1; i++ {
+		screen.SetContent(i, 0, tcell.RuneHLine, nil, wall)
+		screen.SetContent(i, HEIGHT+1, tcell.RuneHLine, nil, wall)
 	}
 
-	for i := 0; i < HEIGHT; i++ {
-		screen.SetContent(0, i, tcell.RuneBlock, nil, wall)
-		screen.SetContent(WIDTH-1, i, tcell.RuneBlock, nil, wall)
+	for i := 0; i < HEIGHT+1; i++ {
+		screen.SetContent(0, i, tcell.RuneVLine, nil, wall)
+		screen.SetContent(WIDTH+1, i, tcell.RuneVLine, nil, wall)
 	}
 
 	for i := 0; i < WIDTH; i++ {
@@ -215,12 +208,12 @@ func main() {
 
 	screen, err = tcell.NewScreen()
 	if err != nil {
-		log.Fatalf("Failed making screen: %w", err)
+		log.Fatalf("Failed making screen: %v", err)
 	}
 
 	err = screen.Init()
 	if err != nil {
-		log.Fatalf("Failed init'ing screen: %w", err)
+		log.Fatalf("Failed init'ing screen: %v", err)
 	}
 	screen.SetStyle(tcell.StyleDefault.
 		Background(tcell.ColorBlack).
@@ -279,9 +272,9 @@ LOOP:
 	if endErr != nil {
 		// TODO: replace this with a modal/popup with game over
 		// message and option to restart with Y or N
-		log.Fatalf("End: %v", endErr)
+		fmt.Printf("End: %v\n", endErr)
 	} else {
-		log.Fatalf("Exiting")
+		fmt.Println("Exiting")
 	}
 }
 
@@ -302,7 +295,10 @@ func handleEvent(ev tcell.Event) {
 			changeDirection(LEFT)
 		case tcell.KeyRight:
 			changeDirection(RIGHT)
+		case tcell.KeyRune:
+			if ev.Rune() == 'q' {
+				close(quit)
+			}
 		}
 	}
-
 }
