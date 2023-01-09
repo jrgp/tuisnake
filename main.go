@@ -67,28 +67,6 @@ func (g *UI) drawBoard() {
 	}
 }
 
-func main() {
-
-	screen, err := tcell.NewTerminfoScreen()
-	if err != nil {
-		log.Fatalf("Failed making screen: %v", err)
-	}
-
-	err = screen.Init()
-	if err != nil {
-		log.Fatalf("Failed init'ing screen: %v", err)
-	}
-	screen.SetStyle(tcell.StyleDefault.
-		Background(tcell.ColorBlack).
-		Foreground(tcell.ColorWhite))
-
-	ui := &UI{
-		screen: screen,
-		snake:  &Snake{},
-	}
-	ui.Run()
-}
-
 func (g *UI) Run() {
 	evenChan := make(chan tcell.Event)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -175,4 +153,26 @@ func (g *UI) handleEvent(ev tcell.Event) {
 			}
 		}
 	}
+}
+
+func main() {
+
+	screen, err := tcell.NewScreen()
+	if err != nil {
+		log.Fatalf("Failed making screen: %v", err)
+	}
+
+	err = screen.Init()
+	if err != nil {
+		log.Fatalf("Failed init'ing screen: %v", err)
+	}
+	screen.SetStyle(tcell.StyleDefault.
+		Background(tcell.ColorBlack).
+		Foreground(tcell.ColorWhite))
+
+	ui := &UI{
+		screen: screen,
+		snake:  &Snake{},
+	}
+	ui.Run()
 }
